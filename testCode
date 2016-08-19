@@ -1,0 +1,141 @@
+
+#include "stdafx.h"
+#include "Field.h"
+
+
+//Конструктор по умолчанию
+//Заполняет поле нулями - т.е в квадратиках ничего не рисуется
+field::field(tableFigureBase *fgBasePtrO, tableFigureBase *fgBasePtrX){
+	this->set_zeroGrid();
+
+	this->fgBasePtr[0] = fgBasePtrO;
+	this->fgBasePtr[1] = fgBasePtrX;
+}
+
+
+//Заполнить поле нулями
+void field::set_zeroGrid(){
+
+	for (int a = 0; a < 3; a++)
+	{
+		for (int b = 0; b < 3; b++)
+		{
+			this->grid[a][b] = 0;
+		}//for (int b = 0; b < 3; b++)
+	}//for (int a = 0; a < 3; a++)
+}
+
+//Нарисовать поле 
+void field::draw(const HWND &hWnd){
+   
+	LONG xClient_Begine = drawRect.left, yClient_Begine = drawRect.top;
+	LONG xClient_End = drawRect.right,   yClient_End = drawRect.bottom;
+
+	HDC hdc = GetDC(hWnd);
+
+	//Нарисовать горизонтальные линии поля
+	for (int i = 1; i < 3; i++)
+	{
+		DrawLine(hdc, xClient_End / 3 * i, yClient_Begine, xClient_End / 3 * i, yClient_End);
+	}
+	//Нарисовать вертикальные линии
+	for (int i = 1; i < 3; i++)
+	{
+		DrawLine(hdc, xClient_Begine, yClient_End / 3 * i, xClient_End, yClient_End / 3 * i);
+	}
+	
+	for (int i = 0; i < 3; i++)
+	{
+		for (int j = 0; j < 3; j++)
+		{
+			/* xClient_End / 3 * 0 и yClient_End / 3 * 0 - начало первого квадрата поля
+			   xClient_End / 3 * 1... 
+			*/
+			if (grid[i][j])
+			{
+			grid[i][j] == 1 ? fgBase = fgBasePtr[0] : fgBase = fgBasePtr[1];
+
+			long xLeft = (xClient_End / 3 * i) + (xClient_End / 100);
+			long yTop  = (yClient_End / 3 * j) + (yClient_End / 100);
+
+			long xRight  = (xLeft +  xClient_End / 3) - (xClient_End / 100)*2;
+			long yBottom = (yTop  +  yClient_End / 3) - (yClient_End / 100)*2;
+			fgBase->draw(hdc, xLeft, yTop, xRight, yBottom);
+			}
+		}
+	}
+
+	if (gameEnd)
+	{
+		/*
+		long xLineBegine = (xClient_End / 3)  * this->finishLine_Coord.first.first;
+		long yLineBegine = (yClient_End / 3)  * this->finishLine_Coord.first.second;
+		long xLineEnd    = (xClient_End / 3)  * this->finishLine_Coord.second.first  + xClient_End / 3;
+		long yLineEnd    = (yClient_End / 3)  * this->finishLine_Coord.second.second + yClient_End / 3;
+		this->DrawLine(hdc, xLineBegine, yLineBegine, xLineEnd, yLineEnd);
+		*/
+		this->DrawFinishLine(hdc);
+	}
+	ReleaseDC(hWnd, hdc);
+}
+
+//нарисовать линию
+bool field::DrawLine(HDC hdc, int x_Begine, int y_Begine, int x_End, int y_End){
+
+	//сделать текущими координатами x_Begine, y_Begine
+	MoveToEx(hdc, x_Begine, y_Begine, NULL);
+	
+	//нарисовать линию между тукущими координатами и x_End, y_End
+	return LineTo(hdc, x_End, y_End);
+}
+
+//Записать текущее состояние размера окна
+void field::set_drawRect(const RECT &drawRect){
+
+	this->drawRect = drawRect;
+}
+
+
+//Была нажата клавиша мышки. Проверить попало нажатие в ячейку или нет.
+//Если попало, проверить занята ячейка или нет, если занята  mouseClick вернет (-1,-1),
+//если не занята, вернет координаты ячейки и после вызвать  метод next_Plater_Step() для смены очереди хода.
+bool field::onStep(const RECT &clientRect, long xClick, long yClick){
+
+	std::pair<int, int> coord = mouseClick(clientRect, xClick, yClick);
+
+	if (coord == std::make_pair(-1, -1))
+	{
+		return false;
+	}
+	else if(!grid[coord.first][coord.second])
+	{
+		playerStep == "O" ? grid[coord.first][coord.second] = 1 : grid[coord.first][coord.second] = 2;
+		next_Plater_Step();
+		this->gameStatus(this->grid);
+		return true;
+	}
+	else return false;
+}
+
+
+////Нарисовать перечеркивающую линию
+void field::DrawFinishLine(HDC hdc){
+	//
+	long xClientWidth = this->drawRect.right;
+	long yClientHight = this->drawRect.bottom;
+	//
+	long xBegine = this->finishLine_Coord.first.first;
+	long yBegine = this->finishLine_Coord.first.second;
+	long xEnd    = this->finishLine_Coord.second.first;
+	long yEnd    = this->finishLine_Coord.second.second;
+	//
+	if (yBegine == yEnd)
+	{
+		long xLineBegine = 0;
+		long xLineEnd = xClientWidth;
+		long yLineBegine = yClientHight / 3 * yBegine;
+		long yLineEnd = yClientHight / 3 * yEnd - yClientHight / 3 / 2;
+		this->DrawLine(hdc, xLineBegine, yLineBegine, xLineEnd, yLineEnd);
+		return;
+	}
+}
